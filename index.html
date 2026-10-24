@@ -861,7 +861,7 @@ document.addEventListener("change",e=>{
    Belegfotos liegen einmal geschrieben unter photos/<Eintrag-ID>-<photoRev>.json. */
 const DBX_KEY="7gcrpubuf57ogsc";
 const dbxRedirect=()=>location.origin+location.pathname.replace(/index\.html$/,"");
-const SYNC={cfg:null,state:"off",msg:"",busy:false,again:false,timer:null,panel:null};
+const SYNC={pollMs:60000,cfg:null,state:"off",msg:"",busy:false,again:false,timer:null,panel:null};
 const b64u=b=>btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 async function pkcePair(){
   const v=b64u(crypto.getRandomValues(new Uint8Array(48)));
@@ -939,7 +939,7 @@ async function dbxList(path){
   catch(e){if(e.status===409&&/not_found/.test(e.body||""))return [];throw e}
   const out=[...res.entries];
   while(res.has_more){res=await dbxRpc("files/list_folder/continue",{cursor:res.cursor});out.push(...res.entries)}
-  return out.filter(x=>x[".tag"]==="file").map(x=>x.name);
+  return out.filter(x=>x[".tag"]==="file");
 }
 
 /* Was abgeglichen wird: keine Beispieldaten, kein unberührtes Standardfahrzeug */
@@ -963,19 +963,23 @@ const photoName=(id,rev)=>"/photos/"+id+"-"+rev+".json";
 async function syncRun(){
   const my=SYNC.cfg.deviceId;let changed=0;
   /* 1. Dateien der anderen Geräte lesen und zusammenführen */
-  const files=(await dbxList("/devices")).filter(n=>n.endsWith(".json")&&n!==my+".json");
-  for(const n of files){
+  const ents=(await dbxList("/devices")).filter(x=>x.name.endsWith(".json")&&x.name!==my+".json");
+  const files=ents.map(x=>x.name), seen=SYNC.cfg.seen||(SYNC.cfg.seen={});
+  for(const x of ents){
+    const n=x.name, h=x.content_hash||null;
+    if(h&&seen[n]===h)continue;   /* seit dem letzten Mal unverändert */
     const txt=await dbxDown("/devices/"+n);if(!txt)continue;
     let j;try{j=JSON.parse(txt)}catch(e){continue}
     if(j.app!=="camper-repository"||!j.state)continue;
     const rd=j.deviceId||n.replace(/\.json$/,"");
     changed+=mergeList(S.vehicles,j.state.vehicles,rd,my);
     changed+=mergeList(S.entries,j.state.entries,rd,my);
+    if(h)seen[n]=h;
   }
   if(!vehicles().length){S.vehicles.push(Object.assign(newVehicle(),{auto:true}));S.settings.vehicleId=S.vehicles.at(-1).id;changed++}
   if(!vehicles().some(v=>v.id===S.settings.vehicleId)){S.settings.vehicleId=vehicles()[0].id}
   /* 2. Belegfotos: fehlende laden, neue hochladen */
-  const remote=new Set(await dbxList("/photos"));
+  const remote=new Set((await dbxList("/photos")).map(x=>x.name));
   for(const e of S.entries){
     if(e.deleted||!e.photo||e.demo)continue;
     const rev=e.photoRev||(e.photoRev="0");
@@ -1094,7 +1098,13 @@ async function syncInit(){
   paintSync();
   if(SYNC.cfg)syncSoon(500);
   document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")syncSoon(800)});
+  window.addEventListener("focus",()=>syncSoon(800));
   window.addEventListener("online",()=>syncSoon(500));
+  /* Bei geöffneter App regelmäßig nachsehen, ob ein anderes Gerät etwas geschrieben hat */
+  setInterval(()=>{
+    if(!SYNC.cfg||SYNC.busy||document.visibilityState!=="visible")return;
+    if(Date.now()-(SYNC.cfg.lastSync||0)>=SYNC.pollMs)syncSoon(200);
+  },5000);
   setInterval(paintSync,60000);
 }
 
