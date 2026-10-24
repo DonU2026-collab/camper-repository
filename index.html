@@ -815,7 +815,7 @@ function demoOn(){const d=seedDemo();S.vehicles.push(d.v);S.entries.push(...d.en
 function demoOff(){
   S.entries=S.entries.filter(e=>!e.demo);
   S.vehicles=S.vehicles.filter(v=>!(v.id==="v-demo"&&!S.entries.some(e=>e.vehicleId===v.id)));
-  const dv=S.vehicles.find(v=>v.id==="v-demo");if(dv)dv.name="Wohnmobil";
+  const dv=S.vehicles.find(v=>v.id==="v-demo");if(dv){dv.name="Wohnmobil";stamp(dv)}
   if(!vehicles().length)S.vehicles.push(newVehicle());
   S.settings.demo=false;S.settings.vehicleId=vehicles()[0].id;persist();render();toast("Beispieldaten entfernt");
 }
