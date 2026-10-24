@@ -581,7 +581,7 @@ new MutationObserver(()=>setTimeout(drawCharts,50)).observe(document.documentEle
 let opener=null;
 function closeSheet(){sheetEl.hidden=true;sheetEl.innerHTML="";document.body.style.overflow="";opener&&opener.isConnected&&opener.focus&&opener.focus();opener=null}
 function openSheet({title,body,onSave,saveLabel="Speichern",onDelete,after}){
-  opener=document.activeElement;toastEl.hidden=true;
+  opener=document.activeElement;toastEl.hidden=true;let saving=false;
   sheetEl.innerHTML=`<div class="panel" role="dialog" aria-modal="true" aria-labelledby="sh-t" tabindex="-1">
     <div class="ph"><h2 id="sh-t">${esc(title)}</h2><button class="ib" data-close aria-label="Schließen">${ico("x")}</button></div>
     <div class="pb">${body}</div>
@@ -591,7 +591,7 @@ function openSheet({title,body,onSave,saveLabel="Speichern",onDelete,after}){
     </div></div>`;
   sheetEl.hidden=false;document.body.style.overflow="hidden";
   const err=m=>{const e=$("#sh-err");if(m){e.innerHTML=ico("warn",20)+`<span>${esc(m)}</span>`;e.hidden=false}else e.hidden=true};
-  $("#sh-save").onclick=async()=>{err("");const r=await onSave(err);if(r!==false){closeSheet()}};
+  $("#sh-save").onclick=async()=>{if(saving)return;saving=true;try{err("");const r=await onSave(err);if(r!==false){closeSheet()}}finally{saving=false}};
   if(onDelete){
     $("#sh-del").onclick=()=>{$("#f-main").hidden=true;$("#f-conf").hidden=false;$("#sh-no").focus()};
     $("#sh-no").onclick=()=>{$("#f-conf").hidden=true;$("#f-main").hidden=false;$("#sh-del").focus()};
