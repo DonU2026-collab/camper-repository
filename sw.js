@@ -1,5 +1,5 @@
-/* Camper Repository, Service Worker. Version 0.2 */
-const CACHE = "camper-repository-v0.2";
+/* Camper Repository, Service Worker. Version 0.3 */
+const CACHE = "camper-repository-v0.3";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 
 self.addEventListener("install", e => {
